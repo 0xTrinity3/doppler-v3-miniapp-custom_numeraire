@@ -1,0 +1,93 @@
+# Doppler Custom Numeraire Plan
+
+## Notes
+- Repository `doppler-v3-miniapp-custom_numeraire` cloned to `/Users/josephcharlesworth/Documents/doppler_custom`.
+- Goal is to replace the default numeraire (currently unknown) with a user-supplied custom ERC-20 token.
+- For ERC-20 numeraires we must:
+  - Add Permit / Permit2 signature flow so the Universal Router can pull tokens.
+  - Replicate the asset→numeraire swap logic already present in the mini-app for the reverse (non-native numeraire→asset) direction.
+- Native (ETH) numeraire path already handled via `msg.value` → WETH, so no changes needed there.
+- Reviewed `src/addresses.ts` and `src/constants.ts`; numeraire asset not defined there.
+- Listed `src` directory to understand codebase structure.
+- Confirmed default numeraire is WETH (0x4200…).
+- Identified key files for update: `DeployDoppler.tsx`, `usePoolCreationData.ts`, `ViewDoppler.tsx`.
+- Updated `DeployDoppler.tsx` to accept custom ERC-20 numeraire address (removed hard-coded WETH, added input & validation).
+- Installed project dependencies with `bun install`.
+- Verified `usePoolCreationData.ts` already supports custom numeraires; no code changes required there.
+- Integrated Permit2 approval flow for custom ERC20 numeraire swaps in `ViewDoppler.tsx` and updated builder logic for WETH vs non-WETH paths.
+- Removed duplicated code blocks and fixed immediate syntax errors; resolved Drift type conflicts by aligning @delvtech/drift and @delvtech/drift-viem to 0.8.4.
+- Successfully downgraded @delvtech/drift and @delvtech/drift-viem to 0.8.4 and ran `bun install`.
+- Confirmed doppler-v3-sdk@1.0.24 depends on @delvtech/drift and @delvtech/drift-viem ^0.8.4; project now aligned.
+- User suggested using local doppler-sdk repo (https://github.com/whetstoneresearch/doppler-sdk) to resolve dependency issues.
+- Development server running successfully; TypeScript compilation passes.
+- Ensure .env variables live in miniapp root (`doppler-v3-miniapp-custom_numeraire`) so Vite picks them up.
+- WTF token address confirmed correct and decimals 18; debugging InvalidSignature from Permit2 during swap
+- Encountering Drift Error for negative amounts ("Number `-...` not in safe 256-bit unsigned integer range") when typing amount; likely sign bug in `handleAmountChange` / quoting logic.
+- Refactored `handleAmountChange` with strict input validation to block negative/invalid numbers before `parseEther` and replaced the function in `ViewDoppler.tsx`.
+- Remaining TypeScript syntax errors surfaced after previous malformed edit; need to ensure build passes and lints are cleared.
+- Updated `createPermitData` to accept dynamic nonce and added Permit2 `allowance` read in `handleSwap` to fetch current nonce.
+- Still receiving `ExecutionFailed(0, 0x756688fe)` (Permit2.InvalidSignature) during custom numeraire swap; dynamic nonce alone did not fix issue. Suspect EIP-712 domain or struct mismatch in `getPermitSignature` / `doppler-router` or incorrect tuple encoding in `buildSwapCommands`.
+- Reverted field back to `sigDeadline` (linter showed `PermitSingle` requires it). Error persists, confirms issue likely inside `doppler-router` EIP-712 encoding or Universal Router tuple.
+- Planning to bypass library: manually craft EIP-712 `PermitSingle` typed data, sign with `walletClient.signTypedData`, and directly call `IAllowanceTransfer.permit` to isolate signature validity.
+- Implemented manual EIP-712 `PermitSingle` signing and discovered Permit2 domain uses an **empty version string**. Removing `version` from the domain made `Permit2.permit` simulation succeed with our manual signature, proving doppler-router's `getPermitSignature` is using the wrong domain (likely `version:"1"`). Next step is to replace doppler-router signing with our working implementation.
+- Implemented manual EIP-712 `PermitSingle` signing and direct `Permit2.permit` simulation; Metamask now prompts for two signatures but call reverts with unknown error `0x815e1d64`. Need to decode revert reason and adjust domain/type fields (e.g., omit `version`, check `sigDeadline`, `expiration`).
+- Integrated manual EIP-712 `PermitSingle` signing into Universal Router flow. Swap transaction succeeded on Base Sepolia; Permit and Transfer logs confirm allowance and token movement.
+- Fallback to `getPermitSignature` removed; MetaMask now shows two prompts (one EIP-712 permit signature, one transaction approval). This two-step signing is expected; update UX/docs accordingly.
+- Swaps verified working in both directions (asset → numeraire and vice-versa); end-to-end flow confirmed.
+- `issues.md` report created explaining the Permit2 domain version bug for Doppler team.
+- Evaluated deployment scripts and environment variables; no changes required.
+- README updated with two-signature flow and env var docs.
+- User requested optional .env variable to specify default custom numeraire address to pre-populate deployment page.
+- Implemented optional env var `VITE_DEFAULT_CUSTOM_NUMERAIRE_ADDRESS`; `.env.example` updated and `DeployDoppler.tsx` now pre-fills the input if set.
+- Need to analyze pool graduation logic and default parameters for upcoming tests.
+- Determined that leaving Advanced Options blank passes empty strings; SDK/contract applies internal defaults, so advanced parameters are optional.
+- Cloned `doppler-sdk` locally; inspecting `ReadWriteFactory.ts` reveals default constants for pool, sale, vesting, and governance configs.
+- Need to extract default parameters & graduation logic from SDK.
+- README now includes default advanced option parameters; market cap formula guidance section added.
+- All TypeScript errors resolved in ViewDoppler.tsx; dev server runs clean.
+- Extracted pool graduation logic: graduation triggered via Airlock.migrate -> LiquidityMigrator -> DERC20.unlockPool; README updated with Pool Graduation section.
+
+## Task List
+- [x] Clone the mini-app repository.
+- [x] Explore codebase & map folder structure.
+- [x] Inspect `addresses.ts` and `constants.ts` for numeraire (not found).
+- [x] Locate where pool deployment defines/uses the numeraire asset.
+- [x] Identify the current numeraire asset (address / constant).
+- [x] Design configuration to inject a custom ERC-20 numeraire address.
+- [x] Integrate Permit / Permit2 signature handling for non-native numeraire → asset swaps.
+- [x] Implement swap logic for non-native numeraire → asset in Universal Router.
+- [x] Implement Permit2 approval flow in `ViewDoppler.tsx` for custom numeraire → asset swaps.
+- [x] Resolve TypeScript type errors (Drift dependency conflicts).
+- [x] Align @delvtech/drift and @delvtech/drift-viem to 0.8.4 and reinstall dependencies.
+- [x] Evaluate using local doppler-sdk repo to resolve dependency mismatch.
+- [x] Relocate .env file to miniapp root and restart dev server.
+- [x] Debug Permit2 InvalidSignature error during custom numeraire swap.
+  - [x] Implement dynamic nonce fetch for Permit2 permit generation.
+  - [x] Manually simulate `IAllowanceTransfer.permit` call to isolate signature validity.
+  - [x] Prototype manual EIP-712 signing & direct `permit` call via viem.
+  - [x] Verify EIP-712 domain separator parameters (`name` "Permit2", `chainId`, `verifyingContract`).
+  - [x] Decode Permit2 revert signature `0x815e1d64` (maps to `InvalidSignature`) and resolved by fixing domain version.
+  - [x] Replace `getPermitSignature` usage with custom manual signing that omits `version`.
+  - [x] Update `buildSwapCommands` to use manual signature & permit tuple.
+  - [x] Remove fallback to `getPermitSignature` and ensure single MetaMask prompt.
+  - [ ] Submit PR or patch to doppler-router or fork with fix.
+    - [x] Draft `issues.md` summarizing EIP-712 domain version bug for Doppler maintainers.
+- [x] Resolve TypeScript syntax errors after handleAmountChange refactor.
+- [x] Verify swaps end-to-end & add tests.
+- [x] Manually test swaps with custom numeraire in dev server.
+- [x] Evaluate deployment scripts (no changes needed).
+- [ ] Update unit / integration tests to cover custom numeraire flows.
+- [x] Update README and UX documentation to clarify custom numeraire support and two-signature flow.
+- [x] Add optional env var support (e.g., `VITE_DEFAULT_CUSTOM_NUMERAIRE_ADDRESS`), update .env.example, pre-fill Deploy page input, update docs.
+- [x] Review graduation conditions & default parameters in codebase.
+  - [x] Clone doppler-sdk repository locally to inspect defaults.
+  - [x] Extract default parameters from SDK and update README.
+  - [x] Extract graduation logic from SDK.
+- [ ] Write tests to validate pool graduation mechanics.
+- [x] Document default advanced option behavior in README.
+- [x] Add market cap formula guidance to README.
+- [x] Fix TypeScript EIP-712 message shape errors in ViewDoppler.tsx.
+- [ ] Document pool graduation logic in README.
+
+## Current Goal
+- Document pool graduation logic in README.
