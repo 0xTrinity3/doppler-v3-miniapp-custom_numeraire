@@ -9,9 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Address } from "viem";
 
 const TICK_SPACING = 200;
-const weth = "0x4200000000000000000000000000000000000006";
 
 function roundToTickSpacing(tick: number): number {
   return Math.round(tick / TICK_SPACING) * TICK_SPACING;
@@ -31,6 +31,9 @@ function DeployDoppler() {
   const [maxShareToBond, setMaxShareToBond] = useState("");
   const [isDeploying, setIsDeploying] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [customNumeraireAddress, setCustomNumeraireAddress] = useState(
+    import.meta.env.VITE_DEFAULT_CUSTOM_NUMERAIRE_ADDRESS || ""
+  );
 
   const {
     tokenFactory,
@@ -103,13 +106,17 @@ function DeployDoppler() {
     e.preventDefault();
     setIsDeploying(true);
     try {
-      if (!weth) throw new Error("WETH address not loaded");
       if (!account.address) throw new Error("Account address not found");
+      if (!customNumeraireAddress) throw new Error("Custom Numeraire Address not provided");
+      // Ensure the address is valid (basic check, can be improved)
+      if (!/^0x[a-fA-F0-9]{40}$/.test(customNumeraireAddress)) {
+        throw new Error("Invalid Custom Numeraire Address format");
+      }
 
       const createV3PoolParams: CreateV3PoolParams = {
         integrator: account.address,
         userAddress: account.address,
-        numeraire: weth,
+        numeraire: customNumeraireAddress as Address,
         contracts: {
           tokenFactory,
           governanceFactory,
@@ -161,6 +168,16 @@ function DeployDoppler() {
                 onChange={(e) => setTokenSymbol(e.target.value)}
                 placeholder="Enter token symbol"
                 required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="customNumeraireAddress">Custom Numeraire Address</Label>
+              <Input
+                id="customNumeraireAddress"
+                value={customNumeraireAddress}
+                onChange={(e) => setCustomNumeraireAddress(e.target.value)}
+                placeholder="0x..."
               />
             </div>
 
