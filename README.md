@@ -81,6 +81,17 @@ The `Number of Positions` parameter works with your tick range. It determines ho
 
 ### Pool Graduation
 
+### Integrator Fee
+
+The Doppler protocol supports an integrator fee, which can be earned by the entity (e.g., a UI, a script, or a platform) that facilitates the creation of a new pool. You can read more about this in the [official Doppler documentation on Fees and Economics](https://docs.doppler.lol/how-it-works/fees-and-economics).
+
+In this miniapp implementation:
+
+*   **Default Behavior**: The integrator address is automatically set to the wallet address of the user deploying the pool. This is handled in the `src/pages/DeployDoppler.tsx` file where the `integrator` parameter is assigned the deployer's `account.address`.
+*   **Customization**: If you wish to set a different integrator address (e.g., a dedicated treasury address for your platform), you would need to modify the `DeployDoppler.tsx` component. This would typically involve adding a new input field for the integrator address and updating the `handleDeploy` function to use this custom address instead of `account.address`.
+
+
+
 The transition from a limited, concentrated liquidity sale to a full-range, decentralized pool is known as "graduation." This process is not automatic; it must be manually triggered.
 
 Here’s how it works:
