@@ -172,7 +172,7 @@ export const PoolsDocument = graphql(`
       percentDayChange
       totalFee0
       totalFee1
-      graduationThreshold
+      minThreshold
       graduationBalance
       isToken0
       lastRefreshed
